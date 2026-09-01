@@ -1,0 +1,196 @@
+<?php
+ob_start();
+// Start session
+session_start();
+include('../sidebar/admin_sidebar.php');
+// Database connection setup
+include('../connection/conn.php');
+
+$user_id = $_SESSION['user_id'];
+$query = "SELECT * FROM registered_users WHERE user_id = '$user_id'";
+$result = $admin_conn->query($query);
+$user = $result->fetch_assoc();
+
+if ($_SERVER["REQUEST_METHOD"] == "POST")  {
+    $first_name = $admin_conn->real_escape_string($_POST['first_name']);
+    $middle_name = $admin_conn->real_escape_string($_POST['middle_name']);
+    $last_name = $admin_conn->real_escape_string($_POST['last_name']);
+    $email = $admin_conn->real_escape_string($_POST['email']);
+    $username = $admin_conn->real_escape_string($_POST['username']);
+    $role = $admin_conn->real_escape_string($_POST['role']);
+    $status = $admin_conn->real_escape_string($_POST['status']);
+
+    $profile_image = $user['profile_image'];
+
+    if ($_FILES['profile_image']['name']) {
+        $targert_dir = "";
+        $target_file = $targert_dir . basename($_FILES["profile_image"]["name"]);
+        $file_type = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
+
+        $allowed_types = ['jpeg', 'jpg', 'png', 'gif'];
+
+        if (in_array($file_type, $allowed_types)) {
+            if(move_uploaded_file($_FILES["profile_image"]["tmp_name"], $target_file)) {
+                $profile_image = $admin_conn->real_escape_string($target_file);
+            } else {
+                $_SESSION['toast_message'] = "There was an error uploading your file.";
+
+            } 
+        } else {
+            $_SESSION['toast_message'] = "Only JPEG, PNG, JPG, and GIF files are allowed.";
+        }
+    }
+
+
+    $update_query = "UPDATE registered_users SET
+                    first_name = '$first_name',
+                    middle_name = '$middle_name',
+                    last_name = '$last_name',
+                    email = '$email',
+                    username = '$username',
+                    role = '$role',
+                    status = '$status',
+                    profile_image = '$profile_image'
+                    WHERE  user_id = $user_id";
+
+        if ($admin_conn->query($update_query) === TRUE) {
+            $_SESSION['toast_message'] = "Profile updated successfully.";
+
+        } else {
+            $_SESSION['toast_message'] = "Error updating profile: " . $admin_conn->error;
+
+        }
+
+        header("Location: admin_profile.php");
+        exit();
+    }
+
+    ob_end_flush();
+
+?>
+
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="include/css/bootstrap.min.css">
+    <title>Edit Profile</title>
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-body">
+                <!-- Toast Notification -->
+                <?php if (isset($_SESSION['toast_message'])): ?>
+                    <div class="toast-container position-fixed mt-5 w-100 d-flex justify-content-center" style="top: 56px; z-index: 1050;">
+                        <div class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-delay="3000" style="min-width: 300px;">
+                            <div class="toast-header">
+                                <strong class="mr-auto">Notification</strong>
+                                <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="toast-body">
+                                <?php echo $_SESSION['toast_message']; ?>
+                            </div>
+                        </div>
+                    </div>
+                    <?php unset($_SESSION['toast_message']); ?>
+                <?php endif; ?>
+                <h3 class="text-center"> Admin's Profile Information</h3>
+
+                <form action="admin_profile.php" method="post" enctype="multipart/form-data" class="mt-4">
+                    <div class="text-center mb-4">
+                        <?php if ($user['profile_image']): ?>
+                            <img src="<?php echo htmlspecialchars($user['profile_image']); ?>" alt="Profile Image" class="rounded-circle" width="125" height="125">
+
+                        <?php else: ?>
+                            <img src="../Owner/image/default.png" alt="Profile Image" class="rounded-circle" width="12%" height="15%"> <!-- Default image path -->
+                        <?php endif; ?>
+                        <div class="mt-2">
+                            <input type="file" class="form-control-file" id="profile_image" name="profile_image" accept=".jpeg, .jpg, .png, .gif">
+
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- First Row: First Name, Middle Name, Last Name, Email -->
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="first_name">First Name</label>
+                                <input type="text" class="form-control" id="first_name" name="first_name" value="<?php echo htmlspecialchars($user['first_name']); ?>" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="middle_name">Middle Name</label>
+                                <input type="text" class="form-control" id="middle_name" name="middle_name" value="<?php echo htmlspecialchars($user['middle_name']); ?>">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="last_name">Last Name</label>
+                                <input type="text" class="form-control" id="last_name" name="last_name" value="<?php echo htmlspecialchars($user['last_name']); ?>" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="email">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Second Row: Username, Role, Status -->
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="username">Username</label>
+                                <input type="text" class="form-control" id="username" name="username" value="<?php echo htmlspecialchars($user['username']); ?>" required>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="role">Role</label>
+                                <select class="form-control" id="role" name="role" required>
+                                    <option value="admin" <?php if ($user['role'] == 'admin') echo 'selected'; ?>>Admin</option>
+                                    <option value="owner" <?php if ($user['role'] == 'owner') echo 'selected'; ?>>Owner</option>
+                                    <option value="inspector" <?php if ($user['role'] == 'inspector') echo 'selected'; ?>>Inspector</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="status">Status</label>
+                                <select class="form-control" id="status" name="status">
+                                    <option value="active" <?php if ($user['status'] == 'active') echo 'selected'; ?>>Active</option>
+                                    <option value="inactive" <?php if ($user['status'] == 'inactive') echo 'selected'; ?>>Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary mt-3">Update Profile</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <?php include('../footer.php') ?>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // Initialize and show the toast
+                $('.toast').toast('show');
+            });
+        </script>
+
+        <script src="include/js/jquery-3.3.1.min.js"></script>
+        <script src="include/js/bootstrap.min.js"></script>
+</body>
+
+</html>
